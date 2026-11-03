@@ -1,0 +1,41 @@
+# Intraday example: daily trend filter + intraday breakout, flat every evening.
+run_name: intraday_breakout
+tickers: [NVDA, AAPL, TSLA]
+timeframes: [15m, 1h]
+start: 2020-01-01
+end: 2026-04-30
+session: rth
+entry_on: next_open
+exit_on: next_open
+capital_per_trade: 10000
+commission_per_share: 0.005
+min_commission: 1.0
+slippage_pct: 0.02
+workers: 3
+min_bars: 1000
+
+entries:
+  - name: Daily 200SMA + 52WH + 20bar breakout
+    conditions:
+      - {type: sma_above, period: 200, timeframe: 1D}      # yesterday's daily close > daily 200 SMA
+      - {type: high_52w, within_pct: 3}                    # within 3% of 52-week high
+      - {type: donchian_breakout, period: 20, fresh: true}
+      - {type: time_window, start: "09:45", end: "15:00"}
+
+exits:
+  - name: SL 1.5% + Trail 2% + EOD
+    rules:
+      - {type: fixed_sl, pct: 1.5}
+      - {type: trailing_sl, pct: 2}
+      - {type: eod_exit}
+
+  - name: SL 1ATR + Target 2R + EOD
+    rules:
+      - {type: fixed_sl, atr_mult: 1}
+      - {type: target, r_multiple: 2}
+      - {type: eod_exit}
+
+  - name: Swing - SL 5% + Trail 8%
+    rules:
+      - {type: fixed_sl, pct: 5}
+      - {type: trailing_sl, pct: 8}

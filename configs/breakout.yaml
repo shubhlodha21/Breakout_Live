@@ -1,0 +1,98 @@
+# ---------------------------------------------------------------------------
+# Breakout backtest config. Every combination of
+#     timeframes x entries x exits
+# is tested on every ticker. Percent values are in % (8 = 8%).
+# Run:  python run_backtest.py -c configs/breakout.yaml
+# List all available entry/exit types:  python run_backtest.py --list
+# ---------------------------------------------------------------------------
+run_name: breakout_52wh_200sma
+
+# ---- universe & data
+tickers: ALL                 # ALL  |  [AAPL, NVDA, MSFT]  |  "AAPL,NVDA"
+exclude_tickers: [SPY]
+timeframes: [1D]             # 1m 5m 15m 30m 1h 2h 4h 1D 1W
+start: 2019-01-01            # first allowed ENTRY (earlier data still used for indicator warm-up)
+end: 2026-04-30
+session: rth                 # rth (09:30-16:00) | all (04:00-20:00) - intraday only
+daily_source: csv            # csv = USA/*.csv (adjusted, since 1999) | parquet = build daily from DataBento
+
+data_dir: D:\DataBento\data
+csv_dir: D:\DataBento\data\USA
+
+# ---- execution
+entry_on: next_open          # next_open | close   (signal is always evaluated on the bar close)
+exit_on: next_open           # fill for signal-based exits (ma_exit, lower_low_exit)
+capital_per_trade: 10000     # $ per trade (P&L in $; % returns don't depend on it)
+commission_per_share: 0.005
+min_commission: 1.0
+slippage_pct: 0.05           # per side
+workers: 8                   # parallel processes (each needs ~0.5 GB while building the intraday cache)
+
+# ---- ENTRY SETS (all conditions inside a set must be true = AND)
+entries:
+  - name: 52WH + Above 200SMA
+    conditions:
+      - {type: high_52w, lookback_days: 365, price: close}
+      - {type: sma_above, period: 200}
+
+  - name: 52WH only
+    conditions:
+      - {type: high_52w}
+
+  - name: 52WH + 200SMA + Volume
+    conditions:
+      - {type: high_52w}
+      - {type: sma_above, period: 200, slope_bars: 20}     # 200 SMA also rising over 20 bars
+      - {type: volume_surge, mult: 1.5, period: 50}
+
+# ---- EXIT SETS (the first rule to trigger closes the trade = OR)
+use_exits: true              # false = ignore the exit sets below; enter once on the first signal and
+                             #         hold to the end of data (one trade per ticker/timeframe/entry set)
+exits:
+  - name: SL 8%
+    rules:
+      - {type: fixed_sl, pct: 8}
+
+  - name: Trail 15%
+    rules:
+      - {type: trailing_sl, pct: 15}
+
+  - name: SL 8% + Trail 15%
+    rules:
+      - {type: fixed_sl, pct: 8}
+      - {type: trailing_sl, pct: 15}
+
+  - name: SL 2ATR + Trail 3ATR
+    rules:
+      - {type: fixed_sl, atr_mult: 2}
+      - {type: trailing_sl, atr_mult: 3}
+
+  - name: SL 8% + Target 3R
+    rules:
+      - {type: fixed_sl, pct: 8}
+      - {type: target, r_multiple: 3}
+
+  - name: SL 8% + Close < 50SMA
+    rules:
+      - {type: fixed_sl, pct: 8}
+      - {type: ma_exit, period: 50}
+
+# ---- more examples (copy into the lists above)
+#   entries:
+#     - {type: high_52w, within_pct: 5}                 # within 5% of the 52-week high
+#     - {type: high_52w, fresh: true}                   # first day of the breakout only
+#     - {type: sma_above, period: 200, timeframe: 1D}   # daily 200 SMA on an intraday chart
+#     - {type: ma_cross, fast: 50, slow: 200}           # golden cross
+#     - {type: donchian_breakout, period: 20}
+#     - {type: rsi_above, level: 60}
+#     - {type: min_price, price: 10}
+#     - {type: time_window, start: "09:45", end: "15:00"}   # intraday
+#     - {type: sma_above, period: 200, negate: true}    # any condition can be negated
+#   exits:
+#     - {type: trailing_sl, pct: 20, activate_pct: 10}  # start trailing after +10%
+#     - {type: trailing_sl, pct: 10, source: close}
+#     - {type: breakeven, trigger_pct: 10}              # stop to entry after +10%
+#     - {type: channel_trail, period: 20}               # lowest low of last 20 bars
+#     - {type: time_exit, bars: 60}
+#     - {type: eod_exit}                                # intraday: flat every session
+#     - {type: target, pct: 25}

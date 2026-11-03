@@ -1,0 +1,5 @@
+# Manual split corrections for intraday (DataBento) data. Auto-detected splits are listed in cache/splits/.
+# factor = old shares -> new shares (2 = 2:1 split, 0.1 = 1:10 reverse split); factor 1 = "not a split".
+# After editing, delete cache/1min_rth/<TICKER>.parquet (or run with --rebuild-cache) so it is rebuilt.
+ticker,date,factor
+AMC,2021-01-27,1
